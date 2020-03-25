@@ -35,6 +35,7 @@ class MasterWord(Word):
 
     file = pw.TextField()
 
+
 MASTER_DB.connect()
 MASTER_DB.create_tables([MasterWord])
 
@@ -97,7 +98,9 @@ def transcribe(f):
 
     for g in f.audio_files:
         if g.audio_file_extension not in valid_extensions:
-            raise Exception("Audio file {} is an invalid format".format(g.audio_file_name))
+            raise Exception(
+                "Audio file {} is an invalid format".format(g.audio_file_name)
+            )
 
         # check if transcript already exists
         if os.path.isfile(g.transcript_file_name_abs):
@@ -306,12 +309,11 @@ def speak(f):
 def main():
     # build arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["transcribe", "dict", "speak"], help="Mode to run")
     parser.add_argument(
-        "audiofiles",
-        type=str,
-        help="Audio file(s) to use as source",
-        nargs="+",
+        "mode", choices=["transcribe", "dict", "speak"], help="Mode to run"
+    )
+    parser.add_argument(
+        "audiofiles", type=str, help="Audio file(s) to use as source", nargs="+",
     )
     parser.add_argument("--script", type=str, help="Script to speak")
     parser.add_argument("--output", type=str, help="Output file")

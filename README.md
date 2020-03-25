@@ -39,7 +39,7 @@ transcript file. The script needs to have no punctuation.
 
 ## Additional Info
 
-All commands accept multiple input audiofiles. Example:
+All commands accept multiple input audio files. Example:
 
 ```bash
 python main.py speak data/myfile.mp3 data/myfile2.mp3 --script script.txt --output output.mp3
