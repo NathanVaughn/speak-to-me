@@ -13,7 +13,7 @@ Go to your [resource page](https://cloud.ibm.com/resources), select your Speech 
 resource, download the credentials file, and place it in the project directory.
 
 ```bash
-python main.py --audiofile data/myfile.mp3 --transcribe
+python main.py transcribe --audiofiles data/myfile.mp3
 ```
 
 This will send the audio to the Watson Speech To Text service, and write out the
@@ -22,17 +22,25 @@ resulting transcript to `{audiofilename}-transcript.json`.
 ## Create Dictionary
 
 ```bash
-python main.py --audiofile data/myfile.mp3 --dict
+python main.py dict --audiofiles data/myfile.mp3 --output dict.txt
 ```
 
-This will create a file (`{audiofilename}-dict.txt`) with a list of words from the
-transcript above the confidence threshold.
+This will create a file with a list of words from the transcript above the
+confidence threshold.
 
 ## Speak
 
 ```bash
-python main.py --audiofile data/myfile.mp3 --speak --script script.txt --output output.mp3
+python main.py speak --audiofiles data/myfile.mp3 --script script.txt --output output.mp3
 ```
 
 This will read the given script and generate a new output audio file from the
 transcript file. The script needs to have no punctuation.
+
+## Additional Info
+
+All commands accept multiple input audiofiles. Example:
+
+```bash
+python main.py speak --audiofiles data/myfile.mp3 data/myfile2.mp3 --script script.txt --output output.mp3
+```
