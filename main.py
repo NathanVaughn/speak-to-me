@@ -12,7 +12,11 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 from ibm_watson import DiscoveryV1, SpeechToTextV1
 
 CRED = "ibm-credentials.env"
+
 CONFIDENCE_THRESHOLD = 0.90
+VALID_EXTENSIONS = [".mp3", ".wav", ".ogg", ".flac"]
+# how many milliseconds to shave off each side of a word
+TIGHTNESS = 0
 
 DB = pw.SqliteDatabase(None)
 MASTER_DB = pw.SqliteDatabase(":memory:")
@@ -94,10 +98,8 @@ def transcribe(f):
     service = SpeechToTextV1(authenticator=authenticator)
     service.set_service_url(os.getenv("SPEECH_TO_TEXT_URL"))
 
-    valid_extensions = [".mp3", ".wav", ".ogg", ".flac"]
-
     for g in f.audio_files:
-        if g.audio_file_extension not in valid_extensions:
+        if g.audio_file_extension not in VALID_EXTENSIONS:
             raise Exception(
                 "Audio file {} is an invalid format".format(g.audio_file_name)
             )
@@ -295,7 +297,7 @@ def speak(f):
             item.file, format=os.path.splitext(item.file)[1][1:]
         )
         # slice and dice
-        audio = audio[item.start * 1000 : item.end * 1000]
+        audio = audio[(item.start * 1000) + TIGHTNESS : (item.end * 1000 - TIGHTNESS)]
 
         if i == 0:
             full_audio = audio
