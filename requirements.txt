@@ -1,3 +1,4 @@
-python-dotenv
 ibm-watson
+peewee
 pydub
+python-dotenv
