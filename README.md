@@ -34,4 +34,5 @@ transcript above the confidence threshold.
 python main.py --audiofile data/myfile.mp3 --speak --script script.txt --output output.mp3
 ```
 
-This will read the given script and generate a new output audio file from the transcript file.
+This will read the given script and generate a new output audio file from the
+transcript file. The script needs to have no punctuation.

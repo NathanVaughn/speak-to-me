@@ -216,7 +216,7 @@ def speak(f):
     full_audio = None
     for i, item in enumerate(script_data):
         audio = pydub.AudioSegment.from_file(
-            f.abs_audio_file_name, format=file_extension[1:]
+            f.abs_audio_file_name, format=f.audio_file_extension[1:]
         )
         # slice and dice
         audio = audio[item["start"] * 1000 : item["end"] * 1000]
@@ -227,11 +227,11 @@ def speak(f):
             full_audio += audio
 
     # write output file
-    if not f.abs_output_file:
+    if not f.abs_output_file_name:
         raise Exception("Output file required")
 
     print("Writing output file")
-    full_audio.export(f.abs_output_file)
+    full_audio.export(f.abs_output_file_name)
 
 
 def main():
