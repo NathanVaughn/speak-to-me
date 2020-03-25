@@ -303,8 +303,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["transcribe", "dict", "speak"], help="Mode to run")
     parser.add_argument(
-        "--audiofiles",
-        required=True,
+        "audiofiles",
         type=str,
         help="Audio file(s) to use as source",
         nargs="+",
