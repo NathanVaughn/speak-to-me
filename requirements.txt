@@ -1,0 +1,3 @@
+python-dotenv
+ibm-watson
+pydub
