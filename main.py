@@ -222,7 +222,7 @@ def build_master_db(f):
 
 def build_dict(f):
     """Builds a dictionary from a list of audiofiles"""
-    if not hasattr(f, "abs_output_file_name"):
+    if not hasattr(f, "output_file_name_abs"):
         raise Exception("Output argument missing")
 
     build_master_db(f)
@@ -234,8 +234,8 @@ def build_dict(f):
         .distinct()
     ]
 
-    print("Writing dictionary to {}".format(f.abs_output_file_name))
-    with open(f.abs_output_file_name, "w") as file:
+    print("Writing dictionary to {}".format(f.output_file_name_abs))
+    with open(f.output_file_name_abs, "w") as file:
         for word in word_list:
             file.write(word + "\n")
 
