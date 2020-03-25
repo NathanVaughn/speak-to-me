@@ -93,7 +93,12 @@ def transcribe(f):
     service = SpeechToTextV1(authenticator=authenticator)
     service.set_service_url(os.getenv("SPEECH_TO_TEXT_URL"))
 
+    valid_extensions = [".mp3", ".wav", ".ogg", ".flac"]
+
     for g in f.audio_files:
+        if g.audio_file_extension not in valid_extensions:
+            raise Exception("Audio file {} is an invalid format".format(g.audio_file_name))
+
         # check if transcript already exists
         if os.path.isfile(g.transcript_file_name_abs):
             # if so, confirm if we want to continue
