@@ -1,4 +1,5 @@
 import argparse
+import copy
 import io
 import json
 import os
@@ -13,7 +14,7 @@ from ibm_watson import DiscoveryV1, SpeechToTextV1
 
 CRED = "ibm-credentials.env"
 
-CONFIDENCE_THRESHOLD = 0.90
+CONFIDENCE_THRESHOLD = 0.80
 VALID_EXTENSIONS = [".mp3", ".wav", ".ogg", ".flac"]
 # how many milliseconds to shave off each side of a word
 TIGHTNESS = 0
@@ -40,12 +41,15 @@ class MasterWord(Word):
     file = pw.TextField()
 
 
+# connect to the master database since we'll more than likley need it
 MASTER_DB.connect()
 MASTER_DB.create_tables([MasterWord])
 
 
 def file_names(args):
+    # function to build all the file paths and names we need
     class FileData(object):
+        # placeholder class so we can access data in an object syntax
         pass
 
     class AudioFilesData(object):
@@ -121,6 +125,7 @@ def transcribe(f):
             )
         )
 
+        # send the audio to Watson
         with open(g.audio_file_name_abs, "rb") as file:
             response = service.recognize(
                 audio=file,
@@ -130,6 +135,7 @@ def transcribe(f):
                 smart_formatting=True,
             ).get_result()
 
+        # write out the resulting transcript
         with open(g.transcript_file_name_abs, "w") as file:
             json.dump(response, file, indent=4)
 
@@ -145,6 +151,7 @@ def build_db(g):
     with open(g.transcript_file_name_abs, "r") as file:
         data = json.loads(file.read())
 
+    # initialize the db and connect to it
     DB.init(g.database_file_name_abs)
     DB.connect()
     DB.create_tables([Word])
@@ -188,6 +195,7 @@ def build_master_db(f):
 
         print("Loading data from {} into master database".format(g.database_file_name))
         for word in Word.select():
+            # just moving data from one database to another and adding a filename field
             MasterWord.create(
                 text=word.text,
                 start=word.start,
@@ -201,24 +209,19 @@ def build_master_db(f):
     MasterWord.delete().where(MasterWord.confidence < CONFIDENCE_THRESHOLD).execute()
 
     # remove any duplicate words and keep the highest confidence one
-    word_list = [
-        word.text
-        for word in MasterWord.select(MasterWord.text)
-        .order_by(MasterWord.text)
-        .distinct()
-    ]
-    for word in word_list:
+    unique_words = MasterWord.select(MasterWord.text).distinct()
+    for word in unique_words:
         # get max confidence for each word
         confidences = (
             MasterWord.select(MasterWord.confidence)
-            .where(MasterWord.text == word)
+            .where(MasterWord.text == word.text)
             .execute()
         )
         max_confidence = max([c.confidence for c in confidences])
 
         # delete anything that does not have max confidence
         MasterWord.delete().where(
-            Word.confidence < max_confidence & MasterWord.text == word
+            Word.confidence < max_confidence & MasterWord.text == word.text
         ).execute()
 
 
@@ -270,15 +273,11 @@ def speak(f):
     script_words = script_text.split()
     script_data = []
 
-    # exit if words in the script are not present in the transcript
-    word_list = [
-        word.text
-        for word in MasterWord.select(MasterWord.text)
-        .order_by(MasterWord.text)
-        .distinct()
-    ]
+    # get word list
+    word_list = [word.text for word in MasterWord.select(MasterWord.text).distinct()]
     missing = list(set(script_words).difference(word_list))
 
+    # exit if words in the script are not present in the transcript
     if missing:
         print("The following words are missing from the source data: ")
         for m in missing:
@@ -289,16 +288,28 @@ def speak(f):
     for script_word in script_words:
         script_data.append(MasterWord.get(MasterWord.text == script_word))
 
-    # import audio
-    print("Building audio data")
+    # build output audio
+    print("Building output audio")
+    # placeholder for full audio segment
     full_audio = None
-    for i, item in enumerate(script_data):
-        audio = pydub.AudioSegment.from_file(
-            item.file, format=os.path.splitext(item.file)[1][1:]
-        )
-        # slice and dice
-        audio = audio[(item.start * 1000) + TIGHTNESS : (item.end * 1000 - TIGHTNESS)]
+    # dict to cache audio segment objects in memory for performance
+    audio_segments = {}
 
+    for i, item in enumerate(script_data):
+        # print("Working on word {}: {}".format(i, item.text))
+
+        # if file we need segment from is not cached, add it to cache
+        if item.file not in audio_segments.keys():
+            audio_segments[item.file] = pydub.AudioSegment.from_file(
+                item.file, format=os.path.splitext(item.file)[1][1:]
+            )
+
+        # make a copy of the segment from cache to not effect original
+        audio = copy.deepcopy(audio_segments[item.file])
+        # slice and dice
+        audio = audio[(item.start * 1000) + TIGHTNESS : (item.end * 1000) - TIGHTNESS]
+
+        # if first time, don't tack onto the end
         if i == 0:
             full_audio = audio
         else:
