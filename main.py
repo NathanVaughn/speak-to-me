@@ -119,6 +119,19 @@ def transcribe(f):
             if in_.lower()[0] == "n":
                 sys.exit(0)
 
+        # final sanity check as this code can cost real money
+        length_sec = pydub.AudioSegment.from_file(
+            g.audio_file_name_abs, format=g.audio_file_extension[1:]
+        ).duration_seconds
+
+        in_ = input(
+            "Are you sure you want to transcribe {} min, {} sec of audio? (y/n) ".format(
+                round(length_sec / 60), round(length_sec % 60)
+            )
+        )
+        if in_.lower()[0] == "n":
+            sys.exit(0)
+
         print(
             "Transcribing speech of {}. This will take a while.".format(
                 g.audio_file_name
@@ -322,7 +335,7 @@ def speak(f):
     # build output audio
     print("Building output audio")
     # placeholder for full audio segment
-    full_audio = None
+    full_audio = pydub.AudioSegment.empty()
     # dict to cache audio segment objects in memory for performance
     audio_segments = {}
 
@@ -339,12 +352,8 @@ def speak(f):
         audio = copy.deepcopy(audio_segments[item.file])
         # slice and dice
         audio = audio[(item.start * 1000) + TIGHTNESS : (item.end * 1000) - TIGHTNESS]
-
-        # if first time, don't tack onto the end
-        if i == 0:
-            full_audio = audio
-        else:
-            full_audio += audio
+        # combine
+        full_audio += audio
 
     print("Saving output audio to {}".format(f.output_file_name))
     full_audio.export(f.output_file_name_abs)
