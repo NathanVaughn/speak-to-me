@@ -1,6 +1,5 @@
 import argparse
 import copy
-import io
 import json
 import os
 import shutil
@@ -10,7 +9,7 @@ import peewee as pw
 import pydub
 from dotenv import load_dotenv
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
-from ibm_watson import DiscoveryV1, SpeechToTextV1
+from ibm_watson import SpeechToTextV1
 
 CRED = "ibm-credentials.env"
 
@@ -21,6 +20,7 @@ TIGHTNESS = 0
 
 DB = pw.SqliteDatabase(None)
 MASTER_DB = pw.SqliteDatabase(":memory:")
+
 
 # standard Word database model
 class Word(pw.Model):
@@ -157,11 +157,10 @@ def build_db(g):
     DB.create_tables([Word])
 
     # load our data into the database
-    print(
-        "Loading transcript data into {}. This may take a minute.".format(
-            g.database_file_name
-        )
-    )
+    print("Loading transcript data into {}.".format(g.database_file_name))
+
+    new_items = []
+
     for chunk in data["results"]:
         # grab chunk timestamps and confidence
         chunk_word_timestamps = chunk["alternatives"][0]["timestamps"]
@@ -173,18 +172,27 @@ def build_db(g):
             word_timestamps = chunk_word_timestamps[i][1:3]
             word_confidence = chunk_word_confidence[i][1]
 
-            Word.create(
-                text=text.lower(),
-                start=word_timestamps[0],
-                end=word_timestamps[1],
-                confidence=word_confidence,
+            # prepare items in a list for batch insert
+            new_items.append(
+                Word(
+                    text=text.lower(),
+                    start=word_timestamps[0],
+                    end=word_timestamps[1],
+                    confidence=word_confidence,
+                )
             )
+
+    # batch insert
+    with DB.atomic():
+        Word.bulk_create(new_items, batch_size=100)
 
 
 def build_master_db(f):
     """Builds a master in-memory database of multiple transcript databases"""
 
     print("Creating master database")
+    new_items = []
+
     for g in f.audio_files:
         if not os.path.isfile(g.database_file_name_abs):
             build_db(g)
@@ -194,30 +202,48 @@ def build_master_db(f):
             DB.connect()
 
         print("Loading data from {} into master database".format(g.database_file_name))
-        for word in Word.select():
-            # just moving data from one database to another and adding a filename field
-            MasterWord.create(
-                text=word.text,
-                start=word.start,
-                end=word.end,
-                confidence=word.confidence,
-                file=g.audio_file_name_abs,
-            )
+        # just moving data from one database to another and adding a filename field
+        # prepare items in a list for batch insert
+        new_items.extend(
+            [
+                MasterWord(
+                    text=word.text,
+                    start=word.start,
+                    end=word.end,
+                    confidence=word.confidence,
+                    file=g.audio_file_name_abs,
+                )
+                for word in Word.select()
+            ]
+        )
+
+    # batch insert
+    with DB.atomic():
+        MasterWord.bulk_create(new_items, batch_size=100)
 
     print("Processing master database data")
+
+    print(
+        "Removing words that fall below the confidence threshold of {}".format(
+            CONFIDENCE_THRESHOLD
+        )
+    )
     # remove any words that fall below confidence threshold
     MasterWord.delete().where(MasterWord.confidence < CONFIDENCE_THRESHOLD).execute()
 
+    print("Removing duplicate words and keeping the one with highest confidence")
     # remove any duplicate words and keep the highest confidence one
+
     unique_words = MasterWord.select(MasterWord.text).distinct()
     for word in unique_words:
         # get max confidence for each word
-        confidences = (
+        max_confidence = (
             MasterWord.select(MasterWord.confidence)
             .where(MasterWord.text == word.text)
-            .execute()
+            .order_by(MasterWord.confidence.desc())
+            .execute()[0]
+            .confidence
         )
-        max_confidence = max([c.confidence for c in confidences])
 
         # delete anything that does not have max confidence
         MasterWord.delete().where(
@@ -274,7 +300,12 @@ def speak(f):
     script_data = []
 
     # get word list
-    word_list = [word.text for word in MasterWord.select(MasterWord.text).distinct()]
+    word_list = [
+        word.text
+        for word in MasterWord.select(MasterWord.text)
+        .order_by(MasterWord.text)
+        .distinct()
+    ]
     missing = list(set(script_words).difference(word_list))
 
     # exit if words in the script are not present in the transcript
