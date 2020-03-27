@@ -13,7 +13,7 @@ from ibm_watson import SpeechToTextV1
 
 CRED = "ibm-credentials.env"
 
-CONFIDENCE_THRESHOLD = 0.80
+CONFIDENCE_THRESHOLD = 0.90
 VALID_EXTENSIONS = [".mp3", ".wav", ".ogg", ".flac"]
 # how many milliseconds to shave off each side of a word
 TIGHTNESS = 0
