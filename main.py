@@ -93,7 +93,7 @@ def transcribe(f):
     """Transcribes a list of audiofiles"""
     # load credentials
     if not os.path.isfile(CRED):
-        raise IOError("Credential file {} does not exist.".format(CRED))
+        raise Exception("Credential file {} does not exist.".format(CRED))
 
     load_dotenv(CRED)
     authenticator = IAMAuthenticator(os.getenv("SPEECH_TO_TEXT_IAM_APIKEY"))
@@ -158,7 +158,7 @@ def transcribe(f):
 def build_db(g):
     """Process the transcript of a single file into a database"""
     if not os.path.isfile(g.transcript_file_name_abs):
-        raise IOError("Transcription of {} does not exist.".format(g.audio_file_name))
+        raise Exception("Transcription of {} does not exist.".format(g.audio_file_name))
 
     print("Reading transcript {} data".format(g.transcript_file_name))
     with open(g.transcript_file_name_abs, "r") as file:
@@ -295,7 +295,7 @@ def speak(f):
         raise Exception("Script file argument missing")
 
     if not os.path.isfile(f.script_file_name_abs):
-        raise IOError("Script file does not exist.")
+        raise Exception("Script file does not exist.")
 
     if not shutil.which("ffmpeg"):
         raise Exception("ffmpeg needs to be installed.")
@@ -355,6 +355,9 @@ def speak(f):
         # combine
         full_audio += audio
 
+    # normalize levels
+    full_audio = pydub.effects.normalize(full_audio)
+
     print("Saving output audio to {}".format(f.output_file_name))
     full_audio.export(f.output_file_name_abs)
 
@@ -375,7 +378,7 @@ def main():
     # check if audio files even exists
     for file in args.audiofiles:
         if not os.path.isfile(file):
-            raise IOError("Audio file does not exist.")
+            raise Exception("Audio file {} does not exist.".format(file))
 
     file_data = file_names(args)
 
