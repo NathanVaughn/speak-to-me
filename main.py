@@ -234,7 +234,7 @@ def build_master_db(f):
     with DB.atomic():
         MasterWord.bulk_create(new_items, batch_size=100)
 
-    print("Processing master database data")
+    print("Processing {} items in master database data".format(len(new_items)))
 
     print(
         "Removing words that fall below the confidence threshold of {}".format(
