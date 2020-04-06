@@ -126,7 +126,9 @@ def transcribe(f):
 
         in_ = input(
             "Are you sure you want to transcribe {} min, {} sec of audio? This may cost ${}. (y/n) ".format(
-                round(length_sec / 60), round(length_sec % 60), length_sec / 60 * 0.02
+                round(length_sec / 60),
+                round(length_sec % 60),
+                round(length_sec / 60 * 0.02, 3),
             )
         )
         if in_.lower()[0] == "n":
