@@ -285,6 +285,8 @@ def build_dict(f):
         for word in word_list:
             file.write(word + "\n")
 
+    print("{} words written to dictionary".format(len(word_list)))
+
 
 def speak(f):
     """Builds desired phrase from a list of audiofiles"""
